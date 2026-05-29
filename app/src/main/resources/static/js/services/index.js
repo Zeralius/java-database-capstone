@@ -1,58 +1,150 @@
-/*
-  Import the openModal function to handle showing login popups/modals
-  Import the base API URL from the config file
-  Define constants for the admin and doctor login API endpoints using the base URL
+/**
+ * Core Service: Index Controller
+ * Handles homepage authentication dispatching, API communications, and role routing mapping.
+ */
 
-  Use the window.onload event to ensure DOM elements are available after page load
-  Inside this function:
-    - Select the "adminLogin" and "doctorLogin" buttons using getElementById
-    - If the admin login button exists:
-        - Add a click event listener that calls openModal('adminLogin') to show the admin login modal
-    - If the doctor login button exists:
-        - Add a click event listener that calls openModal('doctorLogin') to show the doctor login modal
+// Import required modal controls and environment configuration settings
+import { openModal } from "./components/modals.js";
+import { BASE_URL } from "./config.js";
 
+// Define strict endpoint routes using the system base context configuration rule
+const ADMIN_API = `${BASE_URL}/api/auth/admin/login`;
+const DOCTOR_API = `${BASE_URL}/api/auth/doctor/login`;
 
-  Define a function named adminLoginHandler on the global window object
-  This function will be triggered when the admin submits their login credentials
+/**
+ * Window Initialization Event
+ * Binds structural element event listeners securely after DOM tree completion paint
+ */
+window.onload = () => {
+    // Select login landing action targets
+    const btnAdminLogin = document.getElementById("adminLogin");
+    const btnDoctorLogin = document.getElementById("doctorLogin");
 
-  Step 1: Get the entered username and password from the input fields
-  Step 2: Create an admin object with these credentials
+    // Bind Admin routing triggers if structural nodes are visible in viewport
+    if (btnAdminLogin) {
+        btnAdminLogin.addEventListener("click", () => {
+            openModal("adminLogin");
+        });
+    }
 
-  Step 3: Use fetch() to send a POST request to the ADMIN_API endpoint
-    - Set method to POST
-    - Add headers with 'Content-Type: application/json'
-    - Convert the admin object to JSON and send in the body
+    // Bind Doctor routing triggers if structural nodes are visible in viewport
+    if (btnDoctorLogin) {
+        btnDoctorLogin.addEventListener("click", () => {
+            openModal("doctorLogin");
+        });
+    }
+};
 
-  Step 4: If the response is successful:
-    - Parse the JSON response to get the token
-    - Store the token in localStorage
-    - Call selectRole('admin') to proceed with admin-specific behavior
+/**
+ * Global Admin Authentication Submission Routine Handler
+ */
+window.adminLoginHandler = async () => {
+    // Step 1: Extract real-time credential input node text field contents
+    const usernameInput = document.getElementById("adminUsername")?.value.trim();
+    const passwordInput = document.getElementById("adminPassword")?.value;
 
-  Step 5: If login fails or credentials are invalid:
-    - Show an alert with an error message
+    if (!usernameInput || !passwordInput) {
+        alert("Please provide both your administrative username and account password.");
+        return;
+    }
 
-  Step 6: Wrap everything in a try-catch to handle network or server errors
-    - Show a generic error message if something goes wrong
+    // Step 2: Formulate payload encapsulation block
+    const adminCredentials = {
+        username: usernameInput,
+        password: passwordInput
+    };
 
+    // Step 6: Execute payload post deployment wrapped under security handling block
+    try {
+        // Step 3: Dispatch async network payload transaction block to endpoint
+        const response = await fetch(ADMIN_API, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(adminCredentials)
+        });
 
-  Define a function named doctorLoginHandler on the global window object
-  This function will be triggered when a doctor submits their login credentials
+        // Step 4: Evaluate compliance outcome statuses
+        if (response.ok) {
+            const data = await response.json();
+            
+            // Extract and commit authorization token strings straight to hardware storage
+            localStorage.setItem("token", data.token);
+            localStorage.setItem("userRole", "admin");
 
-  Step 1: Get the entered email and password from the input fields
-  Step 2: Create a doctor object with these credentials
+            // Dispatch dashboard context routing changes sequence execution
+            if (typeof window.selectRole === "function") {
+                window.selectRole("admin");
+            } else {
+                // System fallback routing path rule execution if helper engine layer isn't globally active
+                window.location.href = "/templates/admin/adminDashboard.html";
+            }
+        } else {
+            // Step 5: Handle bad response status code validation failures (e.g. 401, 403)
+            const errorData = await response.json().catch(() => ({}));
+            alert(errorData.message || "Authentication failed. Invalid admin credentials provided.");
+        }
 
-  Step 3: Use fetch() to send a POST request to the DOCTOR_API endpoint
-    - Include headers and request body similar to admin login
+    } catch (error) {
+        // Handle server down drops or system hardware transport network fault errors
+        console.error("Critical error during administrative validation lifecycle:", error);
+        alert("Unable to reach the authentication gateway. Please confirm connection layer status or try again later.");
+    }
+};
 
-  Step 4: If login is successful:
-    - Parse the JSON response to get the token
-    - Store the token in localStorage
-    - Call selectRole('doctor') to proceed with doctor-specific behavior
+/**
+ * Global Clinical Doctor Authentication Submission Routine Handler
+ */
+window.doctorLoginHandler = async () => {
+    // Step 1: Extract validation text values from form input elements
+    const emailInput = document.getElementById("doctorEmail")?.value.trim();
+    const passwordInput = document.getElementById("doctorPassword")?.value;
 
-  Step 5: If login fails:
-    - Show an alert for invalid credentials
+    if (!emailInput || !passwordInput) {
+        alert("Please input your registered clinical email identity and password profile.");
+        return;
+    }
 
-  Step 6: Wrap in a try-catch block to handle errors gracefully
-    - Log the error to the console
-    - Show a generic error message
-*/
+    // Step 2: Build operational credential validation schema
+    const doctorCredentials = {
+        email: emailInput,
+        password: passwordInput
+    };
+
+    // Step 6: Initialize processing lifecycle beneath try-catch environment shield block
+    try {
+        // Step 3: Forward asynchronous registration payload data to remote endpoint
+        const response = await fetch(DOCTOR_API, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(doctorCredentials)
+        });
+
+        // Step 4: Intercept response context mapping returns
+        if (response.ok) {
+            const data = await response.json();
+
+            // Store security identity variables locally
+            localStorage.setItem("token", data.token);
+            localStorage.setItem("userRole", "doctor");
+
+            // Complete workstation navigation path change execution triggers
+            if (typeof window.selectRole === "function") {
+                window.selectRole("doctor");
+            } else {
+                window.location.href = "/templates/doctor/doctorDashboard.html";
+            }
+        } else {
+            // Step 5: Process login credential match processing failures
+            alert("Invalid clinical login profile matching data. Please check entry criteria correctness and re-submit.");
+        }
+
+    } catch (error) {
+        // Step 6: Log structural trace exceptions safely to core console logger
+        console.error("Critical fault state detected while attempting doctor auth pipeline:", error);
+        alert("An unexpected platform connectivity fault intercepted processing requests. Retrying transaction sequence suggested.");
+    }
+};
