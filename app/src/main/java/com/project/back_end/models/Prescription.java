@@ -26,7 +26,7 @@ public class Prescription {
     private String dosage;
 
     @Size(max = 200, message = "Doctor notes cannot exceed 200 characters")
-    private String doctorNotes; 
+    private String doctorNotes;
 
 
     public Prescription() {
