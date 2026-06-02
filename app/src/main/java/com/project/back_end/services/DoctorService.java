@@ -27,7 +27,7 @@ public class DoctorService {
     @Autowired
     private TokenService tokenService;
 
-    public List<String> getDoctorAvailability(Long doctorId, LocalDate date) {
+    public List<LocalTime> getDoctorAvailability(Long doctorId, LocalDate date) {
         try {
             List<LocalTime> slots = new ArrayList<>();
             for(int hour = 9; hour <= 17; hour++) {
@@ -42,7 +42,6 @@ public class DoctorService {
 
             return slots.stream()
                     .filter(slot -> !bookedTimes.contains(slot))
-                    .map(slot -> slot.toString())
                     .collect(Collectors.toList());
         } catch (Exception e) {
             return Collections.emptyList();
