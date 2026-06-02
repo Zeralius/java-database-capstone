@@ -27,7 +27,7 @@ public class DoctorService {
     @Autowired
     private TokenService tokenService;
 
-    public ResponseEntity<?> getDoctorAvailability(Long doctorId, LocalDate date) {
+    public List<String> getDoctorAvailability(Long doctorId, LocalDate date) {
         try {
             List<LocalTime> slots = new ArrayList<>();
             for(int hour = 9; hour <= 17; hour++) {
@@ -36,15 +36,16 @@ public class DoctorService {
 
             List<Appointment> bookedAppointments = appointmentRepository.findByDoctorIdAndAppointmentTimeBetween(doctorId, date.atStartOfDay(), date.atStartOfDay().plusHours(24));
 
-            Set<LocalTime> bookedTimes = bookedAppointments.stream()
-                    .map(appt -> appt.getAppointmentTime().toLocalTime())
+            Set<String> bookedTimes = bookedAppointments.stream()
+                    .map(appt -> appt.getAppointmentTime().toLocalTime().toString())
                     .collect(Collectors.toSet());
 
-            return ResponseEntity.ok(slots.stream()
+            return slots.stream()
                     .filter(slot -> !bookedTimes.contains(slot))
-                    .collect(Collectors.toList()));
+                    .map(slot -> slot.toString())
+                    .collect(Collectors.toList());
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Internal Server error while fetching doctor availability.");
+            return Collections.emptyList();
         }
     }
 
@@ -72,7 +73,6 @@ public class DoctorService {
             doctor.setName(updatedDoctor.getName());
             doctor.setEmail(updatedDoctor.getEmail());
             doctor.setSpecialty(updatedDoctor.getSpecialty());
-            doctor.setAvailableTimes(getDoctorAvailability());
 
             doctorRepository.save(doctor);
             return 1;
@@ -121,7 +121,7 @@ public class DoctorService {
             payload.put("message", "Login successful. ");
             return ResponseEntity.ok(payload);
         } catch (Exception e) {
-            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Internal Server error while validating doctor.");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Internal Server error while validating doctor.");
         }
     }
 
