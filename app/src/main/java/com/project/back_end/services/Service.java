@@ -1,13 +1,16 @@
 package com.project.back_end.services;
 
+import com.project.back_end.DTO.Login;
 import com.project.back_end.models.Admin;
 import com.project.back_end.models.Appointment;
 import com.project.back_end.models.Doctor;
+import com.project.back_end.models.Patient;
 import com.project.back_end.repo.AdminRepository;
 import com.project.back_end.repo.DoctorRepository;
 import com.project.back_end.repo.PatientRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.ResponseStatus;
 
 import java.time.LocalTime;
 import java.util.HashMap;
@@ -121,29 +124,73 @@ public class Service {
         return 0;
     }
 
+    public boolean validatePatient(Patient patient) {
+        if (patient == null) {
+            return false;
+        }
+        Optional<Patient> existingPatient = Optional.ofNullable(patientRepository.findByEmailOrPhone(patient.getEmail(), patient.getPhone()));
+        return existingPatient.isEmpty();
+    }
+
+    public ResponseEntity<Map<String, String>> validatePatientLogin(Login login) {
+        Map<String, String> responseMap = new HashMap<>();
+
+        if(login == null || login.getIdentifier() == null) {
+            responseMap.put("error", "Malformed login structure.");
+            return ResponseEntity.badRequest().body(responseMap);
+        }
+
+        try {
+            Optional<Patient> patientOptional = Optional.ofNullable(patientRepository.findByEmail(login.getIdentifier()));
+            if(patientOptional.isPresent() && patientOptional.get().getPassword().equals(login.getPassword())) {
+                String token = tokenService.generateToken(login.getIdentifier());
+                responseMap.put("token", token);
+                return ResponseEntity.ok(responseMap);
+            }
+
+            responseMap.put("error", "Invalid email or password.");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(responseMap);
+        } catch (Exception e) {
+            responseMap.clear();
+            responseMap.put("error", "Internal Server Error: An unexpected errror occured while processing user login.");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(responseMap);
+        }
 
 
-// 7. **validatePatient Method**
-// This method checks whether a patient with the same email or phone number already exists in the system.
-// - If a match is found, it returns false (indicating the patient is not valid for new registration).
-// - If no match is found, it returns true.
-// This helps enforce uniqueness constraints on patient records and prevent duplicate entries.
+    }
 
-// 8. **validatePatientLogin Method**
-// This method handles login validation for patient users.
-// - It looks up the patient by email.
-// - If found, it checks whether the provided password matches the stored one.
-// - On successful validation, it generates a JWT token and returns it with a 200 OK status.
-// - If the password is incorrect or the patient doesn't exist, it returns a 401 Unauthorized with a relevant error.
-// - If an exception occurs, it returns a 500 Internal Server Error.
-// This method ensures only legitimate patients can log in and access their data securely.
+    public ResponseEntity<Map<String, Object>> filterPatient(String condition, String doctorName, String token) {
+        Map<String, Object> response = new HashMap<>();
 
-// 9. **filterPatient Method**
-// This method filters a patient's appointment history based on condition and doctor name.
-// - It extracts the email from the JWT token to identify the patient.
-// - Depending on which filters (condition, doctor name) are provided, it delegates the filtering logic to PatientService.
-// - If no filters are provided, it retrieves all appointments for the patient.
-// This flexible method supports patient-specific querying and enhances user experience on the client side.
+        if(!tokenService.validateToken(token,"patient")) {
+            response.put("error", "Unauthorized token access.");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+        }
 
+        String email = tokenService.extractEmail(token);
+        Optional<Patient> patientOptional = Optional.ofNullable(patientRepository.findByEmail(email));
+        if(patientOptional.isEmpty()) {
+            response.put("error", "Patient identity context not found.");
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+        }
+
+        Long patientId = patientOptional.get().getId();
+        ResponseEntity<?> serviceResponse;
+
+        boolean hasCondition = condition != null && !condition.trim().isEmpty();
+        boolean hasDoctorName = doctorName != null & !doctorName.trim().isEmpty();
+
+        if(hasCondition && hasDoctorName) {
+            serviceResponse = patientService.filterByDoctorAndCondition(patientId, doctorName, condition);
+        } else if(hasCondition) {
+            serviceResponse = patientService.filterByCondition(patientId, condition);
+        } else if(hasDoctorName) {
+            serviceResponse = patientService.filterByDoctor(patientId, doctorName);
+        } else {
+            serviceResponse = patientService.getPatientAppointment(patientId);
+        }
+        response.put("appointments", serviceResponse.getBody());
+        return ResponseEntity.status(serviceResponse.getStatusCode()).body(response);
+    }
 
 }
